@@ -4,8 +4,7 @@ export async function processDocument(
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> {
-  const correlationId =
-    request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   context.log(`processDocument start correlationId=${correlationId}`);
 
   let body: unknown;

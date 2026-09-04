@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@11.21.0 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
@@ -11,4 +11,4 @@ RUN pnpm --filter function build
 EXPOSE 7071
 ENV AzureWebJobsScriptRoot=/app/apps/function/dist
 ENV AzureFunctionsJobHost__Logging__Console__IsEnabled=true
-CMD ["node", "apps/function/dist/src/index.js"]
+CMD ["sh", "-c", "node apps/function/dist/src/index.js; tail -f /dev/null"]

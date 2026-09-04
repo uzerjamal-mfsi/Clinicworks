@@ -16,5 +16,6 @@ coverage
 pnpm-debug.log*
 .npm
 .eslintcache
+*.tsbuildinfo
 apps/function/local.settings.json
 apps/web/.env.local

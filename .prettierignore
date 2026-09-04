@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+out
+build
+coverage
+pnpm-lock.yaml
+.next
+apps/web/.next
+apps/function/dist
+packages/*/dist
