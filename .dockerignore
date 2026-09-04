@@ -1,6 +1,9 @@
 node_modules
+**/node_modules
 .next
+**/.next
 dist
+**/dist
 .git
 .gitignore
 coverage
@@ -9,3 +12,8 @@ coverage
 npm-debug.log*
 pnpm-debug.log*
 .DS_Store
+.turbo
+out
+build
+.next
+.pnpm-store
