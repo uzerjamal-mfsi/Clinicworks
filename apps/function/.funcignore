@@ -1,0 +1,12 @@
+.git
+.gitignore
+.vscode
+local.settings.json
+node_modules
+dist
+coverage
+.env
+.env.*
+*.log
+README.md
+Dockerfile
