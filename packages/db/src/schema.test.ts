@@ -28,7 +28,9 @@ describe("documents schema", () => {
     expect(documents.id.primary).toBe(true);
   });
 
-  it("keeps table simple with single file column", () => {
-    expect((documents as unknown as Record<string, unknown>).blobName).toBeUndefined();
+  it("defines processing columns for Phase 05", () => {
+    expect(documents.blobName).toBeDefined();
+    expect(documents.classification).toBeDefined();
+    expect(documents.confidenceScore).toBeDefined();
   });
 });

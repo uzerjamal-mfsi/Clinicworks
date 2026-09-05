@@ -6,9 +6,8 @@ export function getEnv() {
     BLOB_CONNECTION_STRING: process.env.BLOB_CONNECTION_STRING,
     BLOB_CONTAINER_NAME: process.env.BLOB_CONTAINER_NAME,
     AI_API_KEY: process.env.AI_API_KEY,
+    AI_API_URL: process.env.AI_API_URL,
     AI_MODEL: process.env.AI_MODEL,
-    DOCUMENT_INTELLIGENCE_ENDPOINT: process.env.DOCUMENT_INTELLIGENCE_ENDPOINT,
-    DOCUMENT_INTELLIGENCE_KEY: process.env.DOCUMENT_INTELLIGENCE_KEY,
     NODE_ENV: process.env.NODE_ENV,
   });
 }

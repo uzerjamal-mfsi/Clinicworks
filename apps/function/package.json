@@ -16,15 +16,19 @@
   },
   "dependencies": {
     "@azure/functions": "^4.5.0",
+    "@azure/storage-blob": "^12.33.0",
     "@clinicworks/db": "workspace:*",
     "@clinicworks/shared": "workspace:*",
+    "pg": "^8.23.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "@types/pg": "^8.23.1",
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
     "eslint": "^10.9.1",
+    "pdf-parse": "^2.4.5",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
   },

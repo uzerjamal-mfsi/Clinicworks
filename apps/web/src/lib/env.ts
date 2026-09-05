@@ -7,8 +7,6 @@ export function getEnv() {
     BLOB_CONTAINER_NAME: process.env.BLOB_CONTAINER_NAME,
     AI_API_KEY: process.env.AI_API_KEY,
     AI_MODEL: process.env.AI_MODEL,
-    DOCUMENT_INTELLIGENCE_ENDPOINT: process.env.DOCUMENT_INTELLIGENCE_ENDPOINT,
-    DOCUMENT_INTELLIGENCE_KEY: process.env.DOCUMENT_INTELLIGENCE_KEY,
     NODE_ENV: process.env.NODE_ENV,
   });
 }

@@ -7,8 +7,6 @@ export const envSchema = z.object({
   AI_API_KEY: z.string().optional(),
   AI_API_URL: z.string().optional(),
   AI_MODEL: z.string().optional(),
-  DOCUMENT_INTELLIGENCE_ENDPOINT: z.string().optional(),
-  DOCUMENT_INTELLIGENCE_KEY: z.string().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 

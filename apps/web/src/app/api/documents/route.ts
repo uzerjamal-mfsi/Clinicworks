@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import pg from "pg";
 import { blobNameForDocument, uploadDocumentBlob } from "@/lib/blob";
+import { triggerLogicApp } from "@/lib/processing";
 
 function getCorrelationId(headers: Record<string, string | undefined>): string {
   const existing = headers["x-correlation-id"] ?? headers["x-request-id"];
@@ -168,10 +169,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!process.env.DATABASE_URL || !process.env.BLOB_CONNECTION_STRING) {
-    logger.error("documents.upload.misconfigured", {});
+  const databaseUrl = process.env.DATABASE_URL;
+  const blobConnectionString = process.env.BLOB_CONNECTION_STRING;
+  if (!databaseUrl || !blobConnectionString) {
+    const missing = [
+      !databaseUrl ? "DATABASE_URL" : null,
+      !blobConnectionString ? "BLOB_CONNECTION_STRING" : null,
+    ].filter((v): v is string => v !== null);
+    logger.error("documents.upload.misconfigured", { missing });
     return NextResponse.json(
-      { error: "Service unavailable", correlationId },
+      { error: `Service unavailable (missing: ${missing.join(", ")})`, correlationId },
       { status: 503, headers: { "x-correlation-id": correlationId } }
     );
   }
@@ -181,7 +188,7 @@ export async function POST(req: NextRequest) {
   let client: pg.PoolClient | null = null;
   let documentId: number | null = null;
   try {
-    const p = getPool(process.env.DATABASE_URL);
+    const p = getPool(databaseUrl);
     client = await p.connect();
     const result = await client.query<DocumentRow>(
       `INSERT INTO documents (file_name, processing_status)
@@ -208,6 +215,15 @@ export async function POST(req: NextRequest) {
     }
 
     logger.info("documents.upload.created", { documentId: String(inserted.id) });
+
+    try {
+      await triggerLogicApp(inserted.id, correlationId);
+    } catch (triggerErr) {
+      logger.warn("documents.upload.triggerPending", {
+        documentId: String(inserted.id),
+        error: triggerErr instanceof Error ? triggerErr.message : String(triggerErr),
+      });
+    }
 
     return NextResponse.json(
       {

@@ -8,9 +8,8 @@
     "BLOB_CONNECTION_STRING": "UseDevelopmentStorage=true",
     "BLOB_CONTAINER_NAME": "documents",
     "AI_API_KEY": "",
-    "AI_MODEL": "",
-    "DOCUMENT_INTELLIGENCE_ENDPOINT": "",
-    "DOCUMENT_INTELLIGENCE_KEY": ""
+    "AI_API_URL": "https://generativelanguage.googleapis.com/v1beta",
+    "AI_MODEL": "gemini-3.1-flash-lite"
   },
   "Host": {
     "CORS": "*"
