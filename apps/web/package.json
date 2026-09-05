@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.33.0",
     "@clinicworks/db": "workspace:*",
     "@clinicworks/shared": "workspace:*",
     "next": "16.3.4",

@@ -23,6 +23,7 @@ export function UploadCard({ onUploaded }: Props) {
   const validate = useCallback((f: File): string | null => {
     if (f.size === 0) return "File is empty";
     if (f.size > 10 * 1024 * 1024) return "File too large — max 10 MB";
+    if (!f.name.toLowerCase().endsWith(".pdf")) return "Only PDF files are accepted";
     return null;
   }, []);
 

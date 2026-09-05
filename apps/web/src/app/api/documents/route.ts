@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import pg from "pg";
+import { blobNameForDocument, uploadDocumentBlob } from "@/lib/blob";
 
 function getCorrelationId(headers: Record<string, string | undefined>): string {
   const existing = headers["x-correlation-id"] ?? headers["x-request-id"];
@@ -155,7 +156,9 @@ export async function POST(req: NextRequest) {
     .instanceof(File)
     .refine((f) => f.size > 0, "File is empty")
     .refine((f) => f.size <= 10 * 1024 * 1024, "File too large (max 10MB)")
-    .refine((f) => f.name.length <= 255, "File name too long");
+    .refine((f) => f.name.length <= 255, "File name too long")
+    .refine((f) => f.name.toLowerCase().endsWith(".pdf"), "Only PDF files are accepted")
+    .refine((f) => !f.type || f.type === "application/pdf", "Only PDF files are accepted");
 
   const parsedFile = fileSchema.safeParse(file);
   if (!parsedFile.success) {
@@ -165,15 +168,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!process.env.DATABASE_URL) {
-    logger.info("documents.upload.fallback_no_db", { fileName: file.name });
+  if (!process.env.DATABASE_URL || !process.env.BLOB_CONNECTION_STRING) {
+    logger.error("documents.upload.misconfigured", {});
     return NextResponse.json(
-      { id: `local-${Date.now()}`, status: "PROCESSING", fileName: file.name, correlationId },
-      { status: 202, headers: { "x-correlation-id": correlationId } }
+      { error: "Service unavailable", correlationId },
+      { status: 503, headers: { "x-correlation-id": correlationId } }
     );
   }
 
+  const bytes = Buffer.from(await file.arrayBuffer());
+
   let client: pg.PoolClient | null = null;
+  let documentId: number | null = null;
   try {
     const p = getPool(process.env.DATABASE_URL);
     client = await p.connect();
@@ -185,6 +191,21 @@ export async function POST(req: NextRequest) {
     );
     const inserted = result.rows[0];
     if (!inserted) throw new Error("Insert returned no rows");
+    documentId = inserted.id;
+
+    try {
+      await uploadDocumentBlob(
+        blobNameForDocument(inserted.id, file.name),
+        bytes,
+        "application/pdf"
+      );
+    } catch (uploadErr) {
+      await client.query(
+        `UPDATE documents SET processing_status = 'FAILED', error_message = $2 WHERE id = $1`,
+        [inserted.id, "Blob upload failed"]
+      );
+      throw uploadErr;
+    }
 
     logger.info("documents.upload.created", { documentId: String(inserted.id) });
 
@@ -200,6 +221,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     logger.error("documents.upload.failed", {
       error: err instanceof Error ? err.message : String(err),
+      ...(documentId ? { documentId: String(documentId) } : {}),
     });
     return NextResponse.json(
       { error: "Failed to create document record", correlationId },
