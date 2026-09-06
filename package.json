@@ -10,6 +10,7 @@
   },
   "workspaces": [],
   "scripts": {
+    "predev": "pnpm --filter @clinicworks/shared --filter @clinicworks/db build",
     "dev": "pnpm --filter web dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

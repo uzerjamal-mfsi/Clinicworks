@@ -4,9 +4,11 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/db/package.json ./packages/db/package.json
 COPY apps/function/package.json ./apps/function/package.json
 RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 COPY . .
+RUN pnpm --filter @clinicworks/shared --filter @clinicworks/db build
 RUN pnpm --filter web build
 EXPOSE 3000
 ENV NODE_ENV=production

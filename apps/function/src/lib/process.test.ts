@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { decideOutcome } from "./process.js";
+import { parseCandidatesResponse } from "./ai.js";
 
 describe("processing outcomes", () => {
   it("succeeds for BP text fixture", () => {
@@ -88,6 +89,47 @@ describe("processing outcomes", () => {
       false
     );
     expect(outcome.status).toBe("NEEDS_REVIEW");
+  });
+
+  it("succeeds end to end for AI values with percent signs and a reference range", () => {
+    const candidates = parseCandidatesResponse({
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  documentType: "HBA1C",
+                  bpReadings: [],
+                  hba1cValues: [
+                    {
+                      value: "6.2%",
+                      date: "2026-09-04",
+                      isGoal: false,
+                      isHistorical: false,
+                      isReferenceRange: false,
+                    },
+                    {
+                      value: "4.0–5.6%",
+                      date: null,
+                      isGoal: false,
+                      isHistorical: false,
+                      isReferenceRange: true,
+                    },
+                  ],
+                  patientAgeYears: null,
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const outcome = decideOutcome(candidates, false);
+    expect(outcome.status).toBe("SUCCESS");
+    expect(outcome.documentType).toBe("HBA1C");
+    expect(outcome.measureValue).toBe("6.2");
+    expect(outcome.measureDate).toBe("2026-09-04");
   });
 
   it("needs review for underage BP", () => {

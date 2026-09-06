@@ -2,9 +2,16 @@ import { describe, it, expect } from "vitest";
 import {
   buildExtractionPrompt,
   parseCandidatesResponse,
+  parseClinicalNumber,
   resolveAiConfig,
   extractCandidates,
 } from "./ai.js";
+
+function geminiPayload(innerJson: string) {
+  return {
+    candidates: [{ content: { parts: [{ text: innerJson }] } }],
+  };
+}
 
 describe("AI adapter", () => {
   it("resolves defaults for model and base URL", () => {
@@ -39,6 +46,72 @@ describe("AI adapter", () => {
     });
     expect(result.documentType).toBe("BP");
     expect(result.bpReadings[0]?.systolic).toBe(128);
+  });
+
+  it("parses unit-suffixed numbers and drops ranges instead of failing", () => {
+    expect(parseClinicalNumber(6.2)).toBe(6.2);
+    expect(parseClinicalNumber("6.2%")).toBe(6.2);
+    expect(parseClinicalNumber(" 128 ")).toBe(128);
+    expect(parseClinicalNumber("6,2")).toBe(6.2);
+    expect(parseClinicalNumber("108 mg/dL")).toBe(108);
+    expect(parseClinicalNumber("120mmHg")).toBe(120);
+    expect(parseClinicalNumber("4.0–5.6%")).toBeNull();
+    expect(parseClinicalNumber("128/84")).toBeNull();
+    expect(parseClinicalNumber("no value")).toBeNull();
+    expect(parseClinicalNumber(Number.NaN)).toBeNull();
+    expect(parseClinicalNumber(null)).toBeNull();
+  });
+
+  it("keeps the measured HbA1c and drops the reference range", () => {
+    const result = parseCandidatesResponse(
+      geminiPayload(
+        JSON.stringify({
+          documentType: "HBA1C",
+          bpReadings: [],
+          hba1cValues: [
+            {
+              value: "6.2%",
+              date: "2026-09-04",
+              isGoal: false,
+              isHistorical: false,
+              isReferenceRange: false,
+            },
+            {
+              value: "4.0–5.6%",
+              date: null,
+              isGoal: false,
+              isHistorical: false,
+              isReferenceRange: true,
+            },
+          ],
+          patientAgeYears: null,
+        })
+      )
+    );
+    expect(result.documentType).toBe("HBA1C");
+    expect(result.hba1cValues).toHaveLength(1);
+    expect(result.hba1cValues[0]?.value).toBe(6.2);
+    expect(result.hba1cValues[0]?.date).toBe("2026-09-04");
+  });
+
+  it("drops BP entries with unparseable numbers", () => {
+    const result = parseCandidatesResponse(
+      geminiPayload(
+        JSON.stringify({
+          documentType: "BP",
+          bpReadings: [
+            { systolic: "128/84", diastolic: 84, date: "2026-09-04" },
+            { systolic: 118, diastolic: "76 mmHg", date: "2026-09-04" },
+          ],
+          hba1cValues: [],
+          patientAgeYears: "45 years",
+        })
+      )
+    );
+    expect(result.bpReadings).toHaveLength(1);
+    expect(result.bpReadings[0]?.systolic).toBe(118);
+    expect(result.bpReadings[0]?.diastolic).toBe(76);
+    expect(result.patientAgeYears).toBeNull();
   });
 
   it("sends provider-neutral HTTP request", async () => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import pg from "pg";
 import { blobNameForDocument, uploadDocumentBlob } from "@/lib/blob";
-import { triggerLogicApp } from "@/lib/processing";
+import { triggerProcessing } from "@/lib/processing";
 
 function getCorrelationId(headers: Record<string, string | undefined>): string {
   const existing = headers["x-correlation-id"] ?? headers["x-request-id"];
@@ -49,6 +49,8 @@ type DocumentRow = {
   document_type: string | null;
   measure_value: string | null;
   measure_date: string | null;
+  classification: string | null;
+  confidence_score: number | null;
   processing_status: string;
   error_message: string | null;
   created_at: Date;
@@ -95,7 +97,7 @@ export async function GET(req: NextRequest) {
     const p = getPool(process.env.DATABASE_URL);
     client = await p.connect();
     const result = await client.query<DocumentRow>(
-      `SELECT id, file_name, document_type, measure_value, measure_date, processing_status, error_message, created_at, date_processed
+      `SELECT id, file_name, document_type, measure_value, measure_date, classification, confidence_score, processing_status, error_message, created_at, date_processed
        FROM documents
        ORDER BY created_at DESC
        LIMIT $1 OFFSET $2`,
@@ -109,6 +111,8 @@ export async function GET(req: NextRequest) {
       documentType: r.document_type,
       measureValue: r.measure_value,
       measureDate: r.measure_date,
+      classification: r.classification,
+      confidenceScore: r.confidence_score,
       errorMessage: r.error_message,
       createdAt: r.created_at.toISOString(),
       dateProcessed: r.date_processed ? r.date_processed.toISOString() : null,
@@ -193,7 +197,7 @@ export async function POST(req: NextRequest) {
     const result = await client.query<DocumentRow>(
       `INSERT INTO documents (file_name, processing_status)
        VALUES ($1, 'PROCESSING')
-       RETURNING id, file_name, document_type, measure_value, measure_date, processing_status, error_message, created_at, date_processed`,
+       RETURNING id, file_name, document_type, measure_value, measure_date, classification, confidence_score, processing_status, error_message, created_at, date_processed`,
       [file.name]
     );
     const inserted = result.rows[0];
@@ -217,7 +221,17 @@ export async function POST(req: NextRequest) {
     logger.info("documents.upload.created", { documentId: String(inserted.id) });
 
     try {
-      await triggerLogicApp(inserted.id, correlationId);
+      const target = await triggerProcessing(inserted.id, correlationId);
+      if (target === "none") {
+        logger.warn("documents.upload.noProcessingTarget", {
+          documentId: String(inserted.id),
+        });
+      } else {
+        logger.info("documents.upload.triggered", {
+          documentId: String(inserted.id),
+          target,
+        });
+      }
     } catch (triggerErr) {
       logger.warn("documents.upload.triggerPending", {
         documentId: String(inserted.id),

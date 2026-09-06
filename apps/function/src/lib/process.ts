@@ -257,13 +257,13 @@ export async function runProcessing(
   if (!ref) throw new Error(`Document ${documentId} not found`);
 
   const blobName = ref.blobName ?? blobNameForDocument(ref.id, ref.fileName);
-  const aiConfig = resolveAiConfig({
-    AI_API_KEY: env.AI_API_KEY,
-    AI_MODEL: env.AI_MODEL,
-    AI_API_URL: env.AI_API_URL,
-  });
 
   try {
+    const aiConfig = resolveAiConfig({
+      AI_API_KEY: env.AI_API_KEY,
+      AI_MODEL: env.AI_MODEL,
+      AI_API_URL: env.AI_API_URL,
+    });
     const downloadBlob =
       overrides.downloadBlob ??
       ((name: string) => downloadDocumentBlob(name, env.BLOB_CONNECTION_STRING, containerName));

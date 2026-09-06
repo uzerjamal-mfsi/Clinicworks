@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import pg from "pg";
-import { triggerLogicApp } from "@/lib/processing";
+import { triggerProcessing } from "@/lib/processing";
 
 function getCorrelation(req: NextRequest): string {
   const existing = req.headers.get("x-correlation-id") ?? req.headers.get("x-request-id") ?? "";
@@ -91,7 +91,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   try {
-    await triggerLogicApp(parsed.data.id, correlationId);
+    const target = await triggerProcessing(parsed.data.id, correlationId);
+    if (target === "none") {
+      logger.warn("documents.retry.noProcessingTarget", {
+        documentId: String(parsed.data.id),
+      });
+    } else {
+      logger.info("documents.retry.triggered", {
+        documentId: String(parsed.data.id),
+        target,
+      });
+    }
   } catch (triggerErr) {
     logger.warn("documents.retry.triggerPending", {
       documentId: String(parsed.data.id),

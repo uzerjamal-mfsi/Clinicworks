@@ -42,6 +42,7 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-}
       LOGIC_APP_WEBHOOK_URL: ${LOGIC_APP_WEBHOOK_URL:-}
+      FUNCTION_PROCESS_DOCUMENT_URL: http://function:7071/api/process-document
     depends_on:
       db:
         condition: service_healthy

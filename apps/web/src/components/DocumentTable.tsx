@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "./StatusBadge";
+import { canRetry, isStaleProcessing, retryDocument } from "@/lib/processing";
 
 type DocumentItem = {
   id: string;
@@ -11,6 +12,8 @@ type DocumentItem = {
   documentType: string | null;
   measureValue: string | null;
   measureDate: string | null;
+  classification: string | null;
+  confidenceScore: number | null;
   errorMessage: string | null;
   createdAt: string;
   dateProcessed: string | null;
@@ -51,6 +54,8 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
   const [data, setData] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<Set<string>>(new Set());
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   const fetchDocs = useCallback(async () => {
     setError(null);
@@ -72,6 +77,55 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
   useEffect(() => {
     void fetchDocs();
   }, [fetchDocs, refreshKey]);
+
+  useEffect(() => {
+    if (!data.some((d) => d.status === "PROCESSING")) return;
+    const timer = setInterval(() => {
+      void fetchDocs();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [data, fetchDocs]);
+
+  async function handleRetry(id: string) {
+    setRetryError(null);
+    setRetrying((prev) => new Set(prev).add(id));
+    try {
+      await retryDocument(id);
+      await fetchDocs();
+    } catch (e) {
+      setRetryError(e instanceof Error ? e.message : "Retry failed");
+    } finally {
+      setRetrying((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  function renderRetry(doc: DocumentItem) {
+    if (!canRetry(doc.status, doc.createdAt)) return null;
+    const busy = retrying.has(doc.id);
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handleRetry(doc.id)}
+        className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+      >
+        {busy ? "Retrying…" : "Retry"}
+      </button>
+    );
+  }
+
+  function renderDetail(doc: DocumentItem) {
+    if (doc.status === "FAILED") return doc.errorMessage ?? "Processing failed";
+    if (doc.status === "NEEDS_REVIEW") return doc.errorMessage ?? "Needs clinical review";
+    if (doc.status === "PROCESSING" && isStaleProcessing(doc.status, doc.createdAt)) {
+      return "Still processing — you can retry";
+    }
+    return null;
+  }
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white">
@@ -144,6 +198,11 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
         </div>
       ) : (
         <>
+          {retryError ? (
+            <div className="mx-6 mb-2 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {retryError}
+            </div>
+          ) : null}
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-left text-sm">
               <thead>
@@ -153,57 +212,76 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
                   <th className="px-4 py-3 font-medium">Value</th>
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200">
-                {data.map((doc) => (
-                  <tr key={doc.id}>
-                    <td className="px-6 py-4">
-                      <p className="truncate text-sm font-medium text-zinc-900">{doc.fileName}</p>
-                      <p className="text-xs text-zinc-500">
-                        #{doc.id} · {formatTime(doc.createdAt)}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-zinc-700">{doc.documentType ?? "—"}</td>
-                    <td className="px-4 py-4 font-mono text-sm text-zinc-700">
-                      {doc.measureValue ?? "—"}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-zinc-600">
-                      {formatDate(doc.measureDate)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <StatusBadge status={doc.status} />
-                    </td>
-                  </tr>
-                ))}
+                {data.map((doc) => {
+                  const detail = renderDetail(doc);
+                  return (
+                    <tr key={doc.id}>
+                      <td className="px-6 py-4">
+                        <p className="truncate text-sm font-medium text-zinc-900">{doc.fileName}</p>
+                        <p className="text-xs text-zinc-500">
+                          #{doc.id} · {formatTime(doc.createdAt)}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-zinc-700">{doc.documentType ?? "—"}</td>
+                      <td className="px-4 py-4 text-sm text-zinc-700">
+                        <span className="font-mono">{doc.measureValue ?? "—"}</span>
+                        {doc.classification ? (
+                          <span className="ml-2 text-xs text-zinc-500">{doc.classification}</span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-zinc-600">
+                        {formatDate(doc.measureDate)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusBadge status={doc.status} />
+                        {detail ? (
+                          <p className="mt-1 max-w-52 text-xs text-zinc-500">{detail}</p>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-4">{renderRetry(doc)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <div className="space-y-3 p-4 sm:hidden">
-            {data.map((doc) => (
-              <div key={doc.id} className="rounded-xl border border-zinc-200 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="truncate text-sm font-medium text-zinc-900">{doc.fileName}</p>
-                  <StatusBadge status={doc.status} />
-                </div>
-                <p className="mt-1 text-xs text-zinc-500">
-                  #{doc.id} · {formatDate(doc.createdAt)}
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 text-xs">
-                  <div>
-                    <p className="text-zinc-500">Type</p>
-                    <p className="mt-1 font-medium text-zinc-900">{doc.documentType ?? "—"}</p>
+            {data.map((doc) => {
+              const detail = renderDetail(doc);
+              return (
+                <div key={doc.id} className="rounded-xl border border-zinc-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="truncate text-sm font-medium text-zinc-900">{doc.fileName}</p>
+                    <StatusBadge status={doc.status} />
                   </div>
-                  <div>
-                    <p className="text-zinc-500">Value</p>
-                    <p className="mt-1 font-mono font-medium text-zinc-900">
-                      {doc.measureValue ?? "—"}
-                    </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    #{doc.id} · {formatDate(doc.createdAt)}
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 text-xs">
+                    <div>
+                      <p className="text-zinc-500">Type</p>
+                      <p className="mt-1 font-medium text-zinc-900">{doc.documentType ?? "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500">Value</p>
+                      <p className="mt-1 font-mono font-medium text-zinc-900">
+                        {doc.measureValue ?? "—"}
+                        {doc.classification ? (
+                          <span className="ml-1 text-zinc-500">{doc.classification}</span>
+                        ) : null}
+                      </p>
+                    </div>
                   </div>
+                  {detail ? <p className="mt-2 text-xs text-zinc-500">{detail}</p> : null}
+                  <div className="mt-3 flex justify-end">{renderRetry(doc)}</div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
