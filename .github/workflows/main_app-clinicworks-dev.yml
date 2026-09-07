@@ -54,62 +54,43 @@ jobs:
       - name: Build Next.js app
         run: pnpm --filter web build
 
-      - name: Prepare standalone deployment
+      - name: Prepare standalone deployment package
         working-directory: apps/web
         run: |
           set -e
 
           STANDALONE=".next/standalone/apps/web"
 
+          # 1. Copy static assets and public files to standalone location
           mkdir -p "$STANDALONE/.next"
-
           cp -R .next/static "$STANDALONE/.next/static"
 
           if [ -d public ]; then
             cp -R public "$STANDALONE/public"
           fi
 
-          echo "=== Looking for @swc/helpers ==="
-
-          SWC_HELPERS_DIR=$(find ../../node_modules/.pnpm \
-            -maxdepth 1 \
-            -type d \
-            -name '@swc+helpers@*' \
-            | head -n 1)
-
-          if [ -z "$SWC_HELPERS_DIR" ]; then
-            echo "ERROR: @swc/helpers was not found"
-            exit 1
+          # 2. Fallback check: Copy @swc/helpers if not traced
+          if [ ! -d ".next/standalone/node_modules/@swc/helpers" ]; then
+            SWC_HELPERS_DIR=$(find ../../node_modules/.pnpm -maxdepth 1 -type d -name '@swc+helpers@*' | head -n 1)
+            if [ -n "$SWC_HELPERS_DIR" ]; then
+              mkdir -p ".next/standalone/node_modules/@swc"
+              cp -R "$SWC_HELPERS_DIR/node_modules/@swc/helpers" ".next/standalone/node_modules/@swc/helpers"
+            fi
           fi
 
-          echo "Found: $SWC_HELPERS_DIR"
-
-          mkdir -p ".next/standalone/node_modules/@swc"
-
-          rm -rf ".next/standalone/node_modules/@swc/helpers"
-
-          cp -R \
-            "$SWC_HELPERS_DIR/node_modules/@swc/helpers" \
-            ".next/standalone/node_modules/@swc/helpers"
-
-          echo "=== Verifying @swc/helpers ==="
-
-          ls -la ".next/standalone/node_modules/@swc/helpers"
-
-          echo "=== Verifying server ==="
-
-          ls -la "$STANDALONE/server.js"
+          # 3. Create zip package directly to avoid Kudu file rsync lock issues
+          cd .next/standalone
+          zip -r -q ../../../deploy.zip .
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-app
-          path: apps/web/.next/standalone
-          include-hidden-files: true
+          name: deploy-package
+          path: deploy.zip
+          retention-days: 1
 
   deploy:
     runs-on: ubuntu-latest
-
     needs: build
 
     permissions:
@@ -120,8 +101,8 @@ jobs:
       - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
-          name: web-app
-          path: ./package
+          name: deploy-package
+          path: .
 
       - name: Login to Azure
         uses: azure/login@v3
@@ -130,25 +111,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Configure Azure Web App
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            az webapp config appsettings set \
-              --resource-group rg-clinicworks-dev \
-              --name ${{ env.APP_NAME }} \
-              --settings \
-                SCM_DO_BUILD_DURING_DEPLOYMENT=false \
-                WEBSITE_RUN_FROM_PACKAGE=1
-
-            az webapp config set \
-              --resource-group rg-clinicworks-dev \
-              --name ${{ env.APP_NAME }} \
-              --startup-file "node apps/web/server.js"
-
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.APP_NAME }}
           slot-name: Production
-          package: ./package
+          package: ./deploy.zip
