@@ -46,27 +46,54 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build workspace dependencies
+      - name: Build workspace packages
         run: |
-          pnpm --filter @clinicworks/shared --filter @clinicworks/db build
+          pnpm --filter @clinicworks/shared build
+          pnpm --filter @clinicworks/db build
 
-      - name: Build web
+      - name: Build Next.js app
         run: pnpm --filter web build
 
-      - name: Inspect Next standalone output
+      # Next.js standalone output in a pnpm monorepo is rooted at
+      # apps/web/.next/standalone/apps/web.
+      #
+      # Copy the static assets and public directory into that runtime.
+      - name: Prepare standalone deployment
         working-directory: apps/web
         run: |
-          echo "=== Standalone files ==="
-          find .next/standalone -maxdepth 8 -type f | sort
+          set -e
 
-      - name: Stage standalone output
-        working-directory: apps/web
-        run: |
-          cp -r .next/static .next/standalone/apps/web/.next/static
+          STANDALONE=".next/standalone/apps/web"
+
+          mkdir -p "$STANDALONE/.next"
+
+          cp -R .next/static "$STANDALONE/.next/static"
 
           if [ -d public ]; then
-            cp -r public .next/standalone/apps/web/public
+            cp -R public "$STANDALONE/public"
           fi
+
+          # Make @swc/helpers available to the standalone runtime.
+          pnpm exec --package=@swc/helpers true
+
+          SWC_HELPERS_DIR=$(find ../../node_modules/.pnpm \
+            -maxdepth 1 \
+            -type d \
+            -name '@swc+helpers@*' \
+            | head -n 1)
+
+          if [ -n "$SWC_HELPERS_DIR" ]; then
+            mkdir -p ".next/standalone/node_modules/@swc"
+            rm -rf ".next/standalone/node_modules/@swc/helpers"
+            cp -R "$SWC_HELPERS_DIR/node_modules/@swc/helpers" \
+              ".next/standalone/node_modules/@swc/helpers"
+          fi
+
+          echo "=== Deployment structure ==="
+          find .next/standalone/apps/web -maxdepth 3 -type f | sort | head -200
+
+          echo "=== @swc/helpers ==="
+          ls -la .next/standalone/node_modules/@swc/helpers || true
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
@@ -97,6 +124,22 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure Azure Web App
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp config appsettings set \
+              --resource-group rg-clinicworks-dev \
+              --name ${{ env.APP_NAME }} \
+              --settings \
+                SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+                WEBSITE_RUN_FROM_PACKAGE=1
+
+            az webapp config set \
+              --resource-group rg-clinicworks-dev \
+              --name ${{ env.APP_NAME }} \
+              --startup-file "node apps/web/server.js"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
