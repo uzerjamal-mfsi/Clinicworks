@@ -56,8 +56,12 @@ jobs:
       - name: Stage standalone output
         working-directory: apps/web
         run: |
+          mkdir -p .next/standalone/.next
           cp -r .next/static .next/standalone/.next/static
-          cp -r public .next/standalone/public
+
+          if [ -d public ]; then
+            cp -r public .next/standalone/public
+          fi
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
