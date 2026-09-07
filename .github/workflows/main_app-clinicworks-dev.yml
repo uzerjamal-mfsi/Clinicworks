@@ -9,7 +9,7 @@ on:
       - "packages/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
-      - ".github/workflows/deploy-web.yml"
+      - ".github/workflows/main_app-clinicworks-dev.yml"
   workflow_dispatch:
 
 env:
@@ -68,17 +68,11 @@ jobs:
             cp -r public .next/standalone/apps/web/public
           fi
 
-          rm -rf .next/deployment
-          mkdir -p .next/deployment
-
-          cp -r .next/standalone/apps/web/. .next/deployment/
-          cp -r .next/standalone/node_modules .next/deployment/
-
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-app
-          path: apps/web/.next/deployment
+          path: apps/web/.next/standalone
           include-hidden-files: true
 
   deploy:
