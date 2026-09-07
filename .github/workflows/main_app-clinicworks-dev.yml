@@ -53,6 +53,12 @@ jobs:
       - name: Build web
         run: pnpm --filter web build
 
+      - name: Inspect Next standalone output
+        working-directory: apps/web
+        run: |
+          echo "=== Standalone files ==="
+          find .next/standalone -maxdepth 8 -type f | sort
+
       - name: Stage standalone output
         working-directory: apps/web
         run: |
