@@ -55,32 +55,31 @@ jobs:
         run: pnpm --filter web build
 
       - name: Prepare standalone deployment package
-        working-directory: apps/web
         run: |
           set -e
 
-          STANDALONE=".next/standalone/apps/web"
+          STANDALONE="apps/web/.next/standalone/apps/web"
 
           # 1. Copy static assets and public files to standalone location
           mkdir -p "$STANDALONE/.next"
-          cp -R .next/static "$STANDALONE/.next/static"
+          cp -R apps/web/.next/static "$STANDALONE/.next/static"
 
-          if [ -d public ]; then
-            cp -R public "$STANDALONE/public"
+          if [ -d apps/web/public ]; then
+            cp -R apps/web/public "$STANDALONE/public"
           fi
 
           # 2. Fallback check: Copy @swc/helpers if not traced
-          if [ ! -d ".next/standalone/node_modules/@swc/helpers" ]; then
-            SWC_HELPERS_DIR=$(find ../../node_modules/.pnpm -maxdepth 1 -type d -name '@swc+helpers@*' | head -n 1)
+          if [ ! -d "apps/web/.next/standalone/node_modules/@swc/helpers" ]; then
+            SWC_HELPERS_DIR=$(find node_modules/.pnpm -maxdepth 1 -type d -name '@swc+helpers@*' | head -n 1)
             if [ -n "$SWC_HELPERS_DIR" ]; then
-              mkdir -p ".next/standalone/node_modules/@swc"
-              cp -R "$SWC_HELPERS_DIR/node_modules/@swc/helpers" ".next/standalone/node_modules/@swc/helpers"
+              mkdir -p "apps/web/.next/standalone/node_modules/@swc"
+              cp -R "$SWC_HELPERS_DIR/node_modules/@swc/helpers" "apps/web/.next/standalone/node_modules/@swc/helpers"
             fi
           fi
 
-          # 3. Create zip package directly to avoid Kudu file rsync lock issues
-          cd .next/standalone
-          zip -r -q ../../../deploy.zip .
+          # 3. Create zip from the standalone directory to repository root
+          cd apps/web/.next/standalone
+          zip -r -q "$GITHUB_WORKSPACE/deploy.zip" .
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
@@ -102,7 +101,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: deploy-package
-          path: .
 
       - name: Login to Azure
         uses: azure/login@v3
