@@ -16,7 +16,6 @@ env:
   NODE_VERSION: "20"
   PNPM_VERSION: "11.21.0"
   FUNCTION_APP_NAME: "func-clinicworksai-dev"
-  IMAGE_NAME: "function"
 
 jobs:
   build-and-deploy:
@@ -50,13 +49,21 @@ jobs:
           pnpm --filter @clinicworks/db build
           pnpm --filter function build
 
-      - name: Create clean deployment package
+      - name: Create deployment package
         run: |
           set -e
-          mkdir -p ./deploy-pkg
-          cp apps/function/host.json ./deploy-pkg/
-          cp apps/function/package.json ./deploy-pkg/
-          cp -R apps/function/dist ./deploy-pkg/
+
+          rm -rf ./deploy-pkg
+
+          pnpm --filter function deploy --prod ./deploy-pkg
+
+          cp apps/function/host.json ./deploy-pkg/host.json
+
+          echo "Deployment package:"
+          find ./deploy-pkg -maxdepth 3 -type f | sort
+
+          echo "Package contents:"
+          du -sh ./deploy-pkg
 
           cd ./deploy-pkg
           zip -r -q "$GITHUB_WORKSPACE/function.zip" .
