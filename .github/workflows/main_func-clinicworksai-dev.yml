@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "20"
   PNPM_VERSION: "11.21.0"
   FUNCTION_APP_NAME: "func-clinicworksai-dev"
   IMAGE_NAME: "function"
@@ -44,23 +44,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build workspace packages & function
+      - name: Build workspace packages & function bundle
         run: |
           pnpm --filter @clinicworks/shared build
           pnpm --filter @clinicworks/db build
           pnpm --filter function build
 
-      - name: Create self-contained deployment package using pnpm deploy
+      - name: Create clean deployment package
         run: |
           set -e
-          # 1. Use --legacy flag for pnpm v10+ workspace deployment
-          pnpm --filter=function --legacy --prod deploy ./deploy-func
+          mkdir -p ./deploy-pkg
+          cp apps/function/host.json ./deploy-pkg/
+          cp apps/function/package.json ./deploy-pkg/
+          cp -R apps/function/dist ./deploy-pkg/
 
-          # 2. Copy compiled dist into deploy-func
-          cp -R apps/function/dist ./deploy-func/
-
-          # 3. Create zip from inside deploy-func so host.json is at root
-          cd ./deploy-func
+          cd ./deploy-pkg
           zip -r -q "$GITHUB_WORKSPACE/function.zip" .
 
       - name: Log in to Azure

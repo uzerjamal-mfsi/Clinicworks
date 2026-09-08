@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsup src/index.ts --format esm --target node20 --out-dir dist --no-splitting --clean",
     "watch": "tsc --watch",
     "start": "func start",
     "test": "vitest run",
@@ -29,11 +29,8 @@
     "@typescript-eslint/parser": "^8.69.0",
     "eslint": "^10.9.1",
     "pdf-parse": "^2.4.5",
+    "tsup": "^8.3.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
-  },
-  "packageManager": "pnpm@11.21.0",
-  "engines": {
-    "node": ">=20"
   }
 }
