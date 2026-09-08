@@ -22,7 +22,7 @@ export function UploadCard({ onUploaded }: Props) {
 
   const validate = useCallback((f: File): string | null => {
     if (f.size === 0) return "File is empty";
-    if (f.size > 10 * 1024 * 1024) return "File too large — max 10 MB";
+    if (f.size > 10 * 1024 * 1024) return "File too large - max 10 MB";
     if (!f.name.toLowerCase().endsWith(".pdf")) return "Only PDF files are accepted";
     return null;
   }, []);
@@ -77,7 +77,7 @@ export function UploadCard({ onUploaded }: Props) {
       if (inputRef.current) inputRef.current.value = "";
       onUploaded?.(result);
     } catch {
-      setError("Network error — please try again");
+      setError("Network error - please try again");
     } finally {
       setUploading(false);
     }
@@ -164,7 +164,7 @@ export function UploadCard({ onUploaded }: Props) {
 
       {success ? (
         <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          <span className="font-medium">{success.fileName}</span> — {success.status}
+          <span className="font-medium">{success.fileName}</span> - {success.status}
         </div>
       ) : null}
 

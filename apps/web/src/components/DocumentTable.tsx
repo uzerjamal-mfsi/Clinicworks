@@ -25,7 +25,7 @@ type ApiResponse = {
 };
 
 function formatDate(value: string | null): string {
-  if (!value) return "—";
+  if (!value) return "-";
   try {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
@@ -40,13 +40,13 @@ function formatDate(value: string | null): string {
 }
 
 function formatTime(value: string | null): string {
-  if (!value) return "—";
+  if (!value) return "-";
   try {
     const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "—";
+    if (Number.isNaN(d.getTime())) return "-";
     return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(d);
   } catch {
-    return "—";
+    return "-";
   }
 }
 
@@ -122,7 +122,7 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
     if (doc.status === "FAILED") return doc.errorMessage ?? "Processing failed";
     if (doc.status === "NEEDS_REVIEW") return doc.errorMessage ?? "Needs clinical review";
     if (doc.status === "PROCESSING" && isStaleProcessing(doc.status, doc.createdAt)) {
-      return "Still processing — you can retry";
+      return "Still processing - you can retry";
     }
     return null;
   }
@@ -226,9 +226,9 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
                           #{doc.id} · {formatTime(doc.createdAt)}
                         </p>
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-700">{doc.documentType ?? "—"}</td>
+                      <td className="px-4 py-4 text-sm text-zinc-700">{doc.documentType ?? "-"}</td>
                       <td className="px-4 py-4 text-sm text-zinc-700">
-                        <span className="font-mono">{doc.measureValue ?? "—"}</span>
+                        <span className="font-mono">{doc.measureValue ?? "-"}</span>
                         {doc.classification ? (
                           <span className="ml-2 text-xs text-zinc-500">{doc.classification}</span>
                         ) : null}
@@ -265,12 +265,12 @@ export function DocumentTable({ refreshKey }: { refreshKey?: number }) {
                   <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 text-xs">
                     <div>
                       <p className="text-zinc-500">Type</p>
-                      <p className="mt-1 font-medium text-zinc-900">{doc.documentType ?? "—"}</p>
+                      <p className="mt-1 font-medium text-zinc-900">{doc.documentType ?? "-"}</p>
                     </div>
                     <div>
                       <p className="text-zinc-500">Value</p>
                       <p className="mt-1 font-mono font-medium text-zinc-900">
-                        {doc.measureValue ?? "—"}
+                        {doc.measureValue ?? "-"}
                         {doc.classification ? (
                           <span className="ml-1 text-zinc-500">{doc.classification}</span>
                         ) : null}
