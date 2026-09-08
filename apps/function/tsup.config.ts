@@ -9,6 +9,6 @@ export default defineConfig({
   splitting: false,
   sourcemap: false,
   clean: true,
-  external: ["@azure/functions", "@azure/functions-core"],
-  noExternal: [/^(?!@azure\/functions).*/],
+  external: ["@azure/functions-core"],
+  noExternal: [/^(?!@azure\/functions-core).*/],
 });
