@@ -1,41 +1,70 @@
-- name: Install dependencies
-  run: pnpm install --frozen-lockfile
+name: Build and Deploy Function App to Azure
 
-- name: Build shared
-  run: pnpm --filter @clinicworks/shared build
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/function/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/main_func-clinicworksai-dev.yml"
+  workflow_dispatch:
 
-- name: Build db
-  run: pnpm --filter @clinicworks/db build
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "11.21.0"
+  FUNCTION_APP_NAME: "func-clinicworksai-dev"
+  IMAGE_NAME: "function"
 
-- name: Build function
-  run: pnpm --filter function build
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-- name: Create deployment package
-  run: |
-    rm -rf deploy-pkg
-    mkdir deploy-pkg
+    permissions:
+      id-token: write
+      contents: read
 
-    cp apps/function/package.json deploy-pkg/
-    cp apps/function/host.json deploy-pkg/
-    cp -R apps/function/dist deploy-pkg/
+    steps:
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-    cd deploy-pkg
-    npm install --omit=dev
+      - name: Build shared
+        run: pnpm --filter @clinicworks/shared build
 
-- name: Create ZIP
-  run: |
-    cd deploy-pkg
-    zip -r -q "$GITHUB_WORKSPACE/function.zip" .
+      - name: Build db
+        run: pnpm --filter @clinicworks/db build
 
-- name: Azure Login
-  uses: azure/login@v2
-  with:
-    client-id: ${{ secrets.AZURE_CLIENT_ID }}
-    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build function
+        run: pnpm --filter function build
 
-- name: Deploy Function
-  uses: Azure/functions-action@v1
-  with:
-    app-name: func-clinicworksai-dev
-    package: ./function.zip
+      - name: Create deployment package
+        run: |
+          rm -rf deploy-pkg
+          mkdir deploy-pkg
+
+          cp apps/function/package.json deploy-pkg/
+          cp apps/function/host.json deploy-pkg/
+          cp -R apps/function/dist deploy-pkg/
+
+          cd deploy-pkg
+          npm install --omit=dev
+
+      - name: Create ZIP
+        run: |
+          cd deploy-pkg
+          zip -r -q "$GITHUB_WORKSPACE/function.zip" .
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Function
+        uses: Azure/functions-action@v1
+        with:
+          app-name: func-clinicworksai-dev
+          package: ./function.zip
