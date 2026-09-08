@@ -20,6 +20,7 @@
     "@clinicworks/db": "workspace:*",
     "@clinicworks/shared": "workspace:*",
     "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^6.3.289",
     "pg": "^8.23.0",
     "zod": "^4.5.4"
   },
