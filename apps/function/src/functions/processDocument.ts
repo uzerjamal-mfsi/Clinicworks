@@ -1,11 +1,19 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { z } from "zod";
 import { createLogger } from "@clinicworks/shared";
 import { runProcessing } from "../lib/process.js";
 
-const bodySchema = z.object({
-  documentId: z.coerce.number().int().positive(),
-});
+// Simple validation without external schema library
+function validateBody(body: unknown): { valid: boolean; documentId?: number; error?: string } {
+  if (typeof body !== "object" || body === null) {
+    return { valid: false, error: "Invalid JSON body" };
+  }
+  const bodyObj = body as { documentId?: unknown };
+  const id = Number(bodyObj.documentId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return { valid: false, error: "documentId is required and must be a positive integer" };
+  }
+  return { valid: true, documentId: id };
+}
 
 export async function processDocument(
   request: HttpRequest,
@@ -25,16 +33,17 @@ export async function processDocument(
     };
   }
 
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
+  const validation = validateBody(body);
+  if (!validation.valid) {
     return {
       status: 400,
-      jsonBody: { error: "documentId is required", correlationId },
+      jsonBody: { error: validation.error, correlationId },
     };
   }
+  const documentId = validation.documentId as number;
 
   try {
-    const result = await runProcessing(parsed.data.documentId, correlationId);
+    const result = await runProcessing(documentId, correlationId);
     return {
       status: 200,
       jsonBody: { id: String(result.documentId), status: result.status, correlationId },
@@ -42,7 +51,7 @@ export async function processDocument(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Processing failed";
     if (message.includes("not found")) {
-      logger.warn("processDocument.notFound", { documentId: String(parsed.data.documentId) });
+      logger.warn("processDocument.notFound", { documentId: String(documentId) });
       return {
         status: 404,
         jsonBody: { error: "Document not found", correlationId },

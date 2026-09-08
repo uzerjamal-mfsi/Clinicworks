@@ -1,3 +1,9 @@
+// Polyfill for DOMMatrix used by pdfjs-dist in Node environment
+if (typeof globalThis.DOMMatrix === "undefined") {
+  class DOMMatrixPolyfill {}
+  // @ts-expect-error DOMMatrix is undefined in Node environment
+  globalThis.DOMMatrix = DOMMatrixPolyfill;
+}
 import { PDFParse } from "pdf-parse";
 
 export async function extractPdfText(buffer: Buffer): Promise<string> {
