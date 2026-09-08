@@ -1,6 +1,5 @@
 import { app } from "@azure/functions";
 import { health } from "./functions/health.js";
-import { processDocument } from "./functions/processDocument.js";
 
 app.http("health", {
   methods: ["GET"],
@@ -13,5 +12,9 @@ app.http("processDocument", {
   methods: ["POST"],
   authLevel: "function",
   route: "process-document",
-  handler: processDocument,
+  handler: async (request, context) => {
+    const { processDocument } = await import("./functions/processDocument.js");
+
+    return processDocument(request, context);
+  },
 });

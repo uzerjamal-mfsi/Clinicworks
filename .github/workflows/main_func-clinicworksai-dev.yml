@@ -1,82 +1,41 @@
-name: Build and Deploy Function App to Azure
+- name: Install dependencies
+  run: pnpm install --frozen-lockfile
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/function/**"
-      - "packages/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - ".github/workflows/main_func-clinicworksai-dev.yml"
-  workflow_dispatch:
+- name: Build shared
+  run: pnpm --filter @clinicworks/shared build
 
-env:
-  NODE_VERSION: "20"
-  PNPM_VERSION: "11.21.0"
-  FUNCTION_APP_NAME: "func-clinicworksai-dev"
+- name: Build db
+  run: pnpm --filter @clinicworks/db build
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+- name: Build function
+  run: pnpm --filter function build
 
-    permissions:
-      id-token: write
-      contents: read
+- name: Create deployment package
+  run: |
+    rm -rf deploy-pkg
+    mkdir deploy-pkg
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    cp apps/function/package.json deploy-pkg/
+    cp apps/function/host.json deploy-pkg/
+    cp -R apps/function/dist deploy-pkg/
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+    cd deploy-pkg
+    npm install --omit=dev
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+- name: Create ZIP
+  run: |
+    cd deploy-pkg
+    zip -r -q "$GITHUB_WORKSPACE/function.zip" .
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+- name: Azure Login
+  uses: azure/login@v2
+  with:
+    client-id: ${{ secrets.AZURE_CLIENT_ID }}
+    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build workspace packages & function bundle
-        run: |
-          pnpm --filter @clinicworks/shared build
-          pnpm --filter @clinicworks/db build
-          pnpm --filter function build
-
-      - name: Create deployment package
-        run: |
-          set -e
-
-          rm -rf ./deploy-pkg
-
-          pnpm --filter function deploy --prod ./deploy-pkg
-
-          cp apps/function/host.json ./deploy-pkg/host.json
-
-          echo "Deployment package:"
-          find ./deploy-pkg -maxdepth 3 -type f | sort
-
-          echo "Package contents:"
-          du -sh ./deploy-pkg
-
-          cd ./deploy-pkg
-          zip -r -q "$GITHUB_WORKSPACE/function.zip" .
-
-      - name: Log in to Azure
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Deploy to Azure Functions
-        uses: azure/functions-action@v1
-        with:
-          app-name: ${{ env.FUNCTION_APP_NAME }}
-          package: ./function.zip
+- name: Deploy Function
+  uses: Azure/functions-action@v1
+  with:
+    app-name: func-clinicworksai-dev
+    package: ./function.zip

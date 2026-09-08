@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsup src/index.ts --format esm --target node20 --out-dir dist --no-splitting --clean",
+    "build": "tsup",
     "watch": "tsc --watch",
     "start": "func start",
     "test": "vitest run",
