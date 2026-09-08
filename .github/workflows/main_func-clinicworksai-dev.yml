@@ -62,8 +62,10 @@ jobs:
       - name: Create deployment package
         run: |
           rm -rf deploy-pkg function.zip
-          pnpm --filter function --prod deploy deploy-pkg --legacy
-          rm -rf deploy-pkg/src deploy-pkg/Dockerfile deploy-pkg/eslint.config.mjs deploy-pkg/tsconfig.json deploy-pkg/tsup.config.ts deploy-pkg/vitest.config.ts deploy-pkg/local.settings.json.example
+          mkdir -p deploy-pkg/dist
+          cp apps/function/host.json deploy-pkg/
+          cp apps/function/package.json deploy-pkg/
+          cp apps/function/dist/index.js deploy-pkg/dist/
 
       - name: Create ZIP
         run: |
