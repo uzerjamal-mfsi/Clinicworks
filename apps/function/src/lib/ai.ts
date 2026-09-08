@@ -39,9 +39,16 @@ export function resolveAiConfig(env: {
   const apiKey = env.AI_API_KEY ?? "";
   if (!apiKey) throw new Error("AI_API_KEY is required");
   const model = env.AI_MODEL?.trim() ? String(env.AI_MODEL) : "gemini-3.1-flash-lite";
-  const baseUrl = env.AI_API_URL?.trim()
+  let baseUrl = env.AI_API_URL?.trim()
     ? String(env.AI_API_URL).replace(/\/$/, "")
     : "https://generativelanguage.googleapis.com/v1beta";
+  // Ensure the URL is valid and starts with http/https; fallback otherwise
+  try {
+    const url = new URL(baseUrl);
+    if (!/^https?:/.test(url.protocol)) throw new Error();
+  } catch {
+    baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+  }
   return { apiKey, model, baseUrl };
 }
 
