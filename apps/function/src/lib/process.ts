@@ -268,9 +268,10 @@ export async function runProcessing(
       overrides.downloadBlob ??
       ((name: string) => downloadDocumentBlob(name, env.BLOB_CONNECTION_STRING, containerName));
     const pdf = await downloadBlob(blobName);
-
+    logger.info("blob.downloaded", { blobName });
     const extractText = overrides.extractText ?? extractPdfText;
     const input = await resolveDocumentInput(pdf, extractText);
+    logger.info("documentInput.resolved", { kind: input.kind });
 
     const extractAi =
       overrides.extractAi ?? ((document: DocumentInput) => extractCandidates(document, aiConfig));
@@ -283,11 +284,17 @@ export async function runProcessing(
     const reason = toSafeReason(error);
     const message = error instanceof Error ? error.message : "Processing failed";
     try {
-      await markFailed(databaseUrl, ref.id, blobName, reason);
+      if (ref && blobName) {
+        await markFailed(databaseUrl, ref.id, blobName, reason);
+      }
     } catch {
-      logger.error("process.markFailed.failed", { documentId: String(ref.id) });
+      logger.error("process.markFailed.failed", { documentId: String(ref?.id ?? documentId) });
     }
-    logger.error("process.failed", { documentId: String(ref.id), error: message });
+    logger.error("process.failed", {
+      documentId: String(documentId),
+      error: message,
+      stack: (error as Error).stack,
+    });
     throw error;
   }
 }

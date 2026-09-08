@@ -1,6 +1,7 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { createLogger } from "@clinicworks/shared";
 import { runProcessing } from "../lib/process.js";
+import { toSafeReason } from "../lib/process.js";
 
 // Simple validation without external schema library
 function validateBody(body: unknown): { valid: boolean; documentId?: number; error?: string } {
@@ -49,6 +50,7 @@ export async function processDocument(
       jsonBody: { id: String(result.documentId), status: result.status, correlationId },
     };
   } catch (error) {
+    const reason = toSafeReason(error);
     const message = error instanceof Error ? error.message : "Processing failed";
     if (message.includes("not found")) {
       logger.warn("processDocument.notFound", { documentId: String(documentId) });
@@ -65,10 +67,15 @@ export async function processDocument(
       };
     }
     context.log(`processDocument failed correlationId=${correlationId}`);
-    logger.error("processDocument.failed");
+    logger.error("processDocument.failed", {
+      documentId: String(documentId),
+      error: message,
+      stack: (error as Error).stack,
+      reason,
+    });
     return {
       status: 500,
-      jsonBody: { error: "Processing failed", correlationId },
+      jsonBody: { error: "Processing failed", reason, correlationId },
     };
   }
 }
