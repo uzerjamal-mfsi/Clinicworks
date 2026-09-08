@@ -53,11 +53,11 @@ jobs:
       - name: Create self-contained deployment package using pnpm deploy
         run: |
           set -e
-          # 1. Isolate apps/function and bundle workspace packages into ./deploy-func
-          pnpm --filter=function --prod deploy ./deploy-func
+          # 1. Use --legacy flag for pnpm v10+ workspace deployment
+          pnpm --filter=function --legacy --prod deploy ./deploy-func
 
           # 2. Copy compiled dist into deploy-func
-          cp -R apps/function/dist ./deploy-func/dist
+          cp -R apps/function/dist ./deploy-func/
 
           # 3. Create zip from inside deploy-func so host.json is at root
           cd ./deploy-func
