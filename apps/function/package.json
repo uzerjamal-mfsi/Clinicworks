@@ -19,6 +19,7 @@
     "@azure/storage-blob": "^12.33.0",
     "@clinicworks/db": "workspace:*",
     "@clinicworks/shared": "workspace:*",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.23.0",
     "zod": "^4.5.4"
   },
@@ -28,7 +29,6 @@
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
     "eslint": "^10.9.1",
-    "pdf-parse": "^2.4.5",
     "tsup": "^8.3.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"

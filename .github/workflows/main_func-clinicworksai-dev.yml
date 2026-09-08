@@ -22,6 +22,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,15 +61,9 @@ jobs:
 
       - name: Create deployment package
         run: |
-          rm -rf deploy-pkg
-          mkdir deploy-pkg
-
-          cp apps/function/package.json deploy-pkg/
-          cp apps/function/host.json deploy-pkg/
-          cp -R apps/function/dist deploy-pkg/
-
-          cd deploy-pkg
-          npm install --omit=dev
+          rm -rf deploy-pkg function.zip
+          pnpm --filter function --prod deploy deploy-pkg --legacy
+          rm -rf deploy-pkg/src deploy-pkg/Dockerfile deploy-pkg/eslint.config.mjs deploy-pkg/tsconfig.json deploy-pkg/tsup.config.ts deploy-pkg/vitest.config.ts deploy-pkg/local.settings.json.example
 
       - name: Create ZIP
         run: |
