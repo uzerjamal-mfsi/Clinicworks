@@ -15,8 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ClinicWorks",
-  description:
-    "Upload and track BP and HbA1c documents.",
+  description: "Upload and track BP and HbA1c documents.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
